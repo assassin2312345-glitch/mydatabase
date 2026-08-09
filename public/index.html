@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>إدارة المشتركين</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+    <header>
+
+        <div>
+
+            <h1>إدارة المشتركين</h1>
+
+            <p>لوحة إدارة قاعدة البيانات</p>
+
+        </div>
+
+        <button class="logout" onclick="logout()">
+            تسجيل الخروج
+        </button>
+
+    </header>
+
+
+    <!-- الإحصائيات -->
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <span>عدد المشتركين</span>
+
+            <strong id="totalSubscribers">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="stat">
+
+            <span>إجمالي المبالغ</span>
+
+            <strong id="totalAmount">
+                0
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <!-- إضافة / تعديل -->
+
+    <div class="card">
+
+        <h2 id="formTitle">
+            إضافة مشترك
+        </h2>
+
+
+        <input type="hidden" id="subscriberId">
+
+
+        <label>اسم المشترك</label>
+
+        <input
+            type="text"
+            id="subscriberName"
+            placeholder="اسم المشترك"
+        >
+
+
+        <label>نوع البيج</label>
+
+        <input
+            type="text"
+            id="pageType"
+            placeholder="نوع البيج"
+        >
+
+
+        <label>الاسم الثلاثي</label>
+
+        <input
+            type="text"
+            id="fullName"
+            placeholder="الاسم الثلاثي"
+        >
+
+
+        <label>عنوان السكن</label>
+
+        <input
+            type="text"
+            id="address"
+            placeholder="عنوان السكن"
+        >
+
+
+        <label>رقم الماستر</label>
+
+        <input
+            type="text"
+            id="masterNumber"
+            placeholder="رقم الماستر"
+        >
+
+
+        <label>المبلغ المستحق</label>
+
+        <input
+            type="number"
+            id="amount"
+            placeholder="المبلغ المستحق"
+        >
+
+
+        <button onclick="saveSubscriber()">
+            حفظ
+        </button>
+
+
+        <button
+            id="cancelEdit"
+            class="cancel"
+            onclick="cancelEdit()"
+            style="display:none"
+        >
+            إلغاء التعديل
+        </button>
+
+    </div>
+
+
+    <!-- البحث -->
+
+    <div class="card">
+
+        <h2>البحث</h2>
+
+
+        <input
+            type="text"
+            id="search"
+            placeholder="ابحث بالاسم أو رقم الماستر أو العنوان..."
+            oninput="searchSubscriber()"
+        >
+
+
+        <div id="result"></div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+// ========================
+// حماية بسيطة للصفحة
+// ========================
+
+if (localStorage.getItem("loggedIn") !== "true") {
+
+    window.location.href = "login.html";
+
+}
+
+
+// ========================
+// حفظ / تعديل
+// ========================
+
+async function saveSubscriber() {
+
+    const id =
+        document.getElementById("subscriberId").value;
+
+
+    const data = {
+
+        subscriberName:
+            document.getElementById("subscriberName").value,
+
+        pageType:
+            document.getElementById("pageType").value,
+
+        fullName:
+            document.getElementById("fullName").value,
+
+        address:
+            document.getElementById("address").value,
+
+        masterNumber:
+            document.getElementById("masterNumber").value,
+
+        amount:
+            document.getElementById("amount").value
+
+    };
+
+
+    if (!data.subscriberName) {
+
+        alert("اكتب اسم المشترك");
+
+        return;
+
+    }
+
+
+    let response;
+
+
+    if (id) {
+
+        response = await fetch(
+            `/api/subscribers/${id}`,
+            {
+                method: "PUT",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(data)
+            }
+        );
+
+    } else {
+
+        response = await fetch(
+            "/api/subscribers",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(data)
+            }
+        );
+
+    }
+
+
+    const result = await response.json();
+
+    alert(result.message);
+
+
+    if (response.ok) {
+
+        clearForm();
+
+        searchSubscriber();
+
+        loadStats();
+
+    }
+
+}
+
+
+// ========================
+// البحث
+// ========================
+
+async function searchSubscriber() {
+
+    const q =
+        document.getElementById("search").value;
+
+
+    const response =
+        await fetch(
+            "/api/subscribers/search?q=" +
+            encodeURIComponent(q)
+        );
+
+
+    const data =
+        await response.json();
+
+
+    const result =
+        document.getElementById("result");
+
+
+    if (data.length === 0) {
+
+        result.innerHTML =
+            "<p>لا توجد نتائج</p>";
+
+        return;
+
+    }
+
+
+    result.innerHTML = data.map(person => `
+
+        <div class="person">
+
+            <h3>
+                ${person.subscriberName}
+            </h3>
+
+            <p>
+                <b>نوع البيج:</b>
+                ${person.pageType || "-"}
+            </p>
+
+            <p>
+                <b>الاسم الثلاثي:</b>
+                ${person.fullName || "-"}
+            </p>
+
+            <p>
+                <b>العنوان:</b>
+                ${person.address || "-"}
+            </p>
+
+            <p>
+                <b>رقم الماستر:</b>
+                ${person.masterNumber || "-"}
+            </p>
+
+            <p>
+                <b>المبلغ:</b>
+                ${person.amount || 0}
+            </p>
+
+
+            <button
+                onclick='editSubscriber(${JSON.stringify(person)})'
+            >
+                تعديل
+            </button>
+
+
+            <button
+                class="delete"
+                onclick="deleteSubscriber(${person.id})"
+            >
+                حذف
+            </button>
+
+        </div>
+
+    `).join("");
+
+}
+
+
+// ========================
+// تعبئة نموذج التعديل
+// ========================
+
+function editSubscriber(person) {
+
+    document.getElementById("subscriberId").value =
+        person.id;
+
+    document.getElementById("subscriberName").value =
+        person.subscriberName;
+
+    document.getElementById("pageType").value =
+        person.pageType;
+
+    document.getElementById("fullName").value =
+        person.fullName;
+
+    document.getElementById("address").value =
+        person.address;
+
+    document.getElementById("masterNumber").value =
+        person.masterNumber;
+
+    document.getElementById("amount").value =
+        person.amount;
+
+
+    document.getElementById("formTitle").textContent =
+        "تعديل المشترك";
+
+
+    document.getElementById("cancelEdit").style.display =
+        "inline-block";
+
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+}
+
+
+// ========================
+// إلغاء التعديل
+// ========================
+
+function cancelEdit() {
+
+    clearForm();
+
+}
+
+
+// ========================
+// حذف
+// ========================
+
+async function deleteSubscriber(id) {
+
+    if (!confirm("متأكد تريد حذف هذا المشترك؟")) {
+
+        return;
+
+    }
+
+
+    const response =
+        await fetch(
+            `/api/subscribers/${id}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+
+    const result =
+        await response.json();
+
+
+    alert(result.message);
+
+
+    searchSubscriber();
+
+    loadStats();
+
+}
+
+
+// ========================
+// تنظيف النموذج
+// ========================
+
+function clearForm() {
+
+    document.getElementById("subscriberId").value = "";
+
+    document.getElementById("subscriberName").value = "";
+
+    document.getElementById("pageType").value = "";
+
+    document.getElementById("fullName").value = "";
+
+    document.getElementById("address").value = "";
+
+    document.getElementById("masterNumber").value = "";
+
+    document.getElementById("amount").value = "";
+
+
+    document.getElementById("formTitle").textContent =
+        "إضافة مشترك";
+
+
+    document.getElementById("cancelEdit").style.display =
+        "none";
+
+}
+
+
+// ========================
+// الإحصائيات
+// ========================
+
+async function loadStats() {
+
+    const response =
+        await fetch("/api/stats");
+
+
+    const data =
+        await response.json();
+
+
+    document.getElementById("totalSubscribers")
+        .textContent = data.total || 0;
+
+
+    document.getElementById("totalAmount")
+        .textContent =
+        Number(data.totalAmount || 0).toLocaleString();
+
+}
+
+
+// ========================
+// تسجيل الخروج
+// ========================
+
+function logout() {
+
+    localStorage.removeItem("loggedIn");
+
+    window.location.href = "login.html";
+
+}
+
+
+// تشغيل الإحصائيات والبحث
+
+loadStats();
+
+searchSubscriber();
+
+</script>
+
+</body>
+
+</html>
